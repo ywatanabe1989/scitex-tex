@@ -4,7 +4,7 @@
 
 """Comprehensive tests for tex._preview module"""
 
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import numpy as np
 import pytest
@@ -12,6 +12,12 @@ import pytest
 # Required for scitex.tex module
 matplotlib = pytest.importorskip("matplotlib")
 matplotlib.use("Agg")  # Use non-interactive backend for testing
+
+# scitex_tex._preview imports `from scitex.plt import subplots` at call time,
+# and the tests patch `scitex.plt.subplots`. Skip the whole module when the
+# umbrella `scitex` package is not installed (e.g. minimal CI env).
+pytest.importorskip("scitex.plt")
+
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 

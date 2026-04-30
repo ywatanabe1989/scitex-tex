@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """scitex-tex — LaTeX helpers (export, preview, vector formatting) — standalone."""
 
+from __future__ import annotations
+
 try:
     from importlib.metadata import version as _v, PackageNotFoundError
     try:
@@ -15,6 +17,7 @@ from ._preview import preview
 from ._to_vec import to_vec
 
 __all__ = [
+    "__version__",
     "export_tex",
     "compile_tex",
     "CompileResult",

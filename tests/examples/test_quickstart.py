@@ -1,0 +1,19 @@
+#!/usr/bin/env python3
+"""Compile-only smoke test for examples/quickstart.py.
+
+Runs `py_compile` to confirm the example parses on the supported Python
+versions. Heavier behavioral coverage belongs in tests/integration/.
+"""
+
+import py_compile
+from pathlib import Path
+
+EXAMPLE = Path(__file__).resolve().parents[2] / "examples" / "quickstart.py"
+
+
+def test_quickstart_compiles():
+    assert EXAMPLE.is_file(), f"missing example: {EXAMPLE}"
+    py_compile.compile(str(EXAMPLE), doraise=True)
+
+
+# EOF

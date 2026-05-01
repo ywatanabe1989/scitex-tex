@@ -82,7 +82,9 @@ The umbrella package's `scitex.tex` import path is preserved via a
 
 ## Part of SciTeX
 
-`scitex-tex` is part of [**SciTeX**](https://scitex.ai).
+`scitex-tex` is part of [**SciTeX**](https://scitex.ai). Install via
+the umbrella with `pip install scitex[tex]` to use as
+`scitex.tex` (Python).
 
 >Four Freedoms for Research
 >

@@ -50,7 +50,7 @@ tx.to_vec(1.234e-3, sig_figs=3)
 
 ## 1 Interfaces
 
-<details>
+<details open>
 <summary><strong>Python API</strong></summary>
 
 <br>

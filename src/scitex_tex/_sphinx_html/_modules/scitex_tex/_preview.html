@@ -96,7 +96,7 @@
 <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
 
 <span class="k">try</span><span class="p">:</span>
-    <span class="kn">from</span><span class="w"> </span><span class="nn">scitex.str</span><span class="w"> </span><span class="kn">import</span> <span class="n">latex_fallback_decorator</span><span class="p">,</span> <span class="n">safe_latex_render</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">scitex_str</span><span class="w"> </span><span class="kn">import</span> <span class="n">latex_fallback_decorator</span><span class="p">,</span> <span class="n">safe_latex_render</span>
 
     <span class="n">FALLBACK_AVAILABLE</span> <span class="o">=</span> <span class="kc">True</span>
 <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
@@ -142,7 +142,7 @@
 <span class="sd">    If LaTeX rendering fails, this function automatically falls back to</span>
 <span class="sd">    mathtext or unicode alternatives while preserving the preview layout.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="kn">from</span><span class="w"> </span><span class="nn">scitex.plt</span><span class="w"> </span><span class="kn">import</span> <span class="n">subplots</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">scitex_plt</span><span class="w"> </span><span class="kn">import</span> <span class="n">subplots</span>
 
     <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">tex_str_list</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
         <span class="n">tex_str_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">tex_str_list</span><span class="p">]</span>

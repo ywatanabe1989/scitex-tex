@@ -15,8 +15,8 @@ import pytest
 
 # ===== AUTO-GENERATED: cross-package imports =====
 CROSS_PACKAGE_IMPORTS = [
-    'scitex.plt',
-    'scitex.str',
+    'scitex_plt',
+    'scitex_str',
 ]
 # ===== END AUTO-GENERATED =====
 

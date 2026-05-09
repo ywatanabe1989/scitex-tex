@@ -78,9 +78,9 @@ def preview(tex_str_list, enable_fallback=True):
             # Original LaTeX string (raw)
             if enable_fallback and FALLBACK_AVAILABLE:
                 safe_raw = safe_latex_render(tex_string, "unicode", preserve_math=False)
-                ax.text(0.5, 0.7, safe_raw, size=20, ha="center", va="center")
+                ax.text(0.5, 0.7, safe_raw, fontsize=20, ha="center", va="center")
             else:
-                ax.text(0.5, 0.7, tex_string, size=20, ha="center", va="center")
+                ax.text(0.5, 0.7, tex_string, fontsize=20, ha="center", va="center")
 
             # LaTeX-formatted string
             latex_formatted = (
@@ -91,9 +91,11 @@ def preview(tex_str_list, enable_fallback=True):
 
             if enable_fallback and FALLBACK_AVAILABLE:
                 safe_latex = safe_latex_render(latex_formatted, preserve_math=True)
-                ax.text(0.5, 0.3, safe_latex, size=20, ha="center", va="center")
+                ax.text(0.5, 0.3, safe_latex, fontsize=20, ha="center", va="center")
             else:
-                ax.text(0.5, 0.3, latex_formatted, size=20, ha="center", va="center")
+                ax.text(
+                    0.5, 0.3, latex_formatted, fontsize=20, ha="center", va="center"
+                )
 
         except Exception as e:
             # Fallback for individual preview failures

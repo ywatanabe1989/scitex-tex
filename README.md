@@ -9,7 +9,7 @@
 <p align="center"><b>LaTeX helpers — export to .tex, compile to PDF, preview images, vector formatting.</b></p>
 
 <p align="center">
-  <a href="https://scitex-tex.readthedocs.io/">Full Documentation</a> · <code>pip install scitex-tex</code>
+  <a href="https://scitex-tex.readthedocs.io/">Full Documentation</a> · <code>uv pip install scitex-tex[all]</code>
 </p>
 
 <!-- scitex-badges:start -->

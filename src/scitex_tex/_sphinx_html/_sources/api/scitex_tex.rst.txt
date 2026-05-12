@@ -1,6 +1,0 @@
-﻿scitex\_tex
-===========
-
-.. automodule:: scitex_tex
-
-   

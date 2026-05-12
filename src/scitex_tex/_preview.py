@@ -18,13 +18,16 @@ Prerequisites:
 
 import numpy as np
 
-try:
-    from scitex_str import latex_fallback_decorator, safe_latex_render
+from scitex_dev import try_import_optional
 
-    FALLBACK_AVAILABLE = True
-except ImportError:
-    FALLBACK_AVAILABLE = False
+_lf = try_import_optional("scitex_str", attr="latex_fallback_decorator")
+_sr = try_import_optional("scitex_str", attr="safe_latex_render")
+FALLBACK_AVAILABLE = _lf is not None and _sr is not None
 
+if FALLBACK_AVAILABLE:
+    latex_fallback_decorator = _lf
+    safe_latex_render = _sr
+else:
     def latex_fallback_decorator(fallback_strategy="auto", preserve_math=True):
         def decorator(func):
             return func

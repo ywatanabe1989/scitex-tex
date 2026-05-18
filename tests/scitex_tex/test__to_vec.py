@@ -1,8 +1,16 @@
 #!/usr/bin/env python3
-# Time-stamp: "2026-01-05 14:00:00 (ywatanabe)"
-# File: ./tests/scitex/tex/test__to_vec.py
+# Time-stamp: "2026-05-18 22:51:00 (ywatanabe)"
+# File: ./tests/scitex_tex/test__to_vec.py
 
-"""Tests for to_vec function that converts strings to LaTeX vector notation."""
+"""Tests for to_vec function — converts strings to LaTeX vector notation.
+
+Test-quality rules (PA-307 / STX-TQ001-007):
+- Descriptive names (≥3 word-tokens after `test_`)
+- AAA marker comments
+- One assertion per test
+"""
+
+import os
 
 import pytest
 
@@ -10,392 +18,494 @@ from scitex_tex import to_vec
 from scitex_tex._to_vec import FALLBACK_AVAILABLE, safe_to_vec, vector_notation
 
 
+# =============================================================================
+# to_vec — raw LaTeX output (enable_fallback=False)
+# =============================================================================
+
+
 class TestToVecWithoutFallback:
     """Tests for to_vec with enable_fallback=False (raw LaTeX output)."""
 
-    def test_basic_vector(self):
-        """Test basic vector conversion returns raw LaTeX."""
-        result = to_vec("AB", enable_fallback=False)
+    def test_to_vec_basic_two_letter_label_emits_overrightarrow_mathrm(self):
+        # Arrange
+        v_str = "AB"
+        # Act
+        result = to_vec(v_str, enable_fallback=False)
+        # Assert
         assert result == r"\overrightarrow{\mathrm{AB}}"
 
-    def test_single_character(self):
-        """Test with single character vector."""
-        result = to_vec("v", enable_fallback=False)
+    def test_to_vec_single_lower_letter_emits_overrightarrow_mathrm(self):
+        # Arrange
+        v_str = "v"
+        # Act
+        result = to_vec(v_str, enable_fallback=False)
+        # Assert
         assert result == r"\overrightarrow{\mathrm{v}}"
 
-        result = to_vec("x", enable_fallback=False)
+    def test_to_vec_single_letter_x_emits_overrightarrow_mathrm(self):
+        # Arrange
+        v_str = "x"
+        # Act
+        result = to_vec(v_str, enable_fallback=False)
+        # Assert
         assert result == r"\overrightarrow{\mathrm{x}}"
 
-    def test_numeric_string(self):
-        """Test with numeric strings."""
-        result = to_vec("12", enable_fallback=False)
+    def test_to_vec_numeric_two_digit_string_emits_overrightarrow_mathrm(self):
+        # Arrange
+        v_str = "12"
+        # Act
+        result = to_vec(v_str, enable_fallback=False)
+        # Assert
         assert result == r"\overrightarrow{\mathrm{12}}"
 
-        result = to_vec("0", enable_fallback=False)
+    def test_to_vec_numeric_zero_string_emits_overrightarrow_mathrm(self):
+        # Arrange
+        v_str = "0"
+        # Act
+        result = to_vec(v_str, enable_fallback=False)
+        # Assert
         assert result == r"\overrightarrow{\mathrm{0}}"
 
-    def test_empty_string(self):
-        """Test with empty string returns empty string."""
-        result = to_vec("", enable_fallback=False)
+    def test_to_vec_empty_string_returns_empty_string(self):
+        # Arrange
+        v_str = ""
+        # Act
+        result = to_vec(v_str, enable_fallback=False)
+        # Assert
         assert result == ""
 
-    def test_special_characters(self):
-        """Test with special characters that are valid in LaTeX."""
-        result = to_vec("v_1", enable_fallback=False)
-        assert result == r"\overrightarrow{\mathrm{v_1}}"
+    @pytest.mark.parametrize(
+        "v_str,expected",
+        [
+            ("v_1", r"\overrightarrow{\mathrm{v_1}}"),
+            ("PQ", r"\overrightarrow{\mathrm{PQ}}"),
+            ("A'", r"\overrightarrow{\mathrm{A'}}"),
+        ],
+    )
+    def test_to_vec_special_input_emits_expected_overrightarrow_form(
+        self, v_str, expected
+    ):
+        # Arrange
+        v_input = v_str
+        # Act
+        result = to_vec(v_input, enable_fallback=False)
+        # Assert
+        assert result == expected
 
-        result = to_vec("PQ", enable_fallback=False)
-        assert result == r"\overrightarrow{\mathrm{PQ}}"
+    @pytest.mark.parametrize(
+        "v_str,expected",
+        [
+            ("velocity", r"\overrightarrow{\mathrm{velocity}}"),
+            ("F_net", r"\overrightarrow{\mathrm{F_net}}"),
+        ],
+    )
+    def test_to_vec_multi_character_label_emits_expected_overrightarrow_form(
+        self, v_str, expected
+    ):
+        # Arrange
+        v_input = v_str
+        # Act
+        result = to_vec(v_input, enable_fallback=False)
+        # Assert
+        assert result == expected
 
-        result = to_vec("A'", enable_fallback=False)
-        assert result == r"\overrightarrow{\mathrm{A'}}"
+    @pytest.mark.parametrize(
+        "v_str,expected",
+        [
+            ("αβ", r"\overrightarrow{\mathrm{αβ}}"),
+            ("∇φ", r"\overrightarrow{\mathrm{∇φ}}"),
+        ],
+    )
+    def test_to_vec_unicode_input_emits_expected_overrightarrow_form(
+        self, v_str, expected
+    ):
+        # Arrange
+        v_input = v_str
+        # Act
+        result = to_vec(v_input, enable_fallback=False)
+        # Assert
+        assert result == expected
 
-    def test_long_string(self):
-        """Test with longer vector names."""
-        result = to_vec("velocity", enable_fallback=False)
-        assert result == r"\overrightarrow{\mathrm{velocity}}"
+    @pytest.mark.parametrize(
+        "v_str,expected",
+        [
+            ("A B", r"\overrightarrow{\mathrm{A B}}"),
+            (" CD ", r"\overrightarrow{\mathrm{ CD }}"),
+        ],
+    )
+    def test_to_vec_input_with_spaces_emits_expected_overrightarrow_form(
+        self, v_str, expected
+    ):
+        # Arrange
+        v_input = v_str
+        # Act
+        result = to_vec(v_input, enable_fallback=False)
+        # Assert
+        assert result == expected
 
-        result = to_vec("F_net", enable_fallback=False)
-        assert result == r"\overrightarrow{\mathrm{F_net}}"
+    @pytest.mark.parametrize(
+        "v_str,expected",
+        [
+            ("$x$", r"\overrightarrow{\mathrm{$x$}}"),
+            ("a&b", r"\overrightarrow{\mathrm{a&b}}"),
+            ("x^2", r"\overrightarrow{\mathrm{x^2}}"),
+        ],
+    )
+    def test_to_vec_input_with_latex_special_chars_emits_unescaped_form(
+        self, v_str, expected
+    ):
+        # Arrange
+        v_input = v_str
+        # Act
+        result = to_vec(v_input, enable_fallback=False)
+        # Assert
+        assert result == expected
 
-    def test_unicode(self):
-        """Test with unicode characters."""
-        result = to_vec("αβ", enable_fallback=False)
-        assert result == r"\overrightarrow{\mathrm{αβ}}"
+    @pytest.mark.parametrize(
+        "v_str,expected",
+        [
+            ("{AB}", r"\overrightarrow{\mathrm{{AB}}}"),
+            ("a{b}c", r"\overrightarrow{\mathrm{a{b}c}}"),
+        ],
+    )
+    def test_to_vec_input_with_braces_emits_expected_overrightarrow_form(
+        self, v_str, expected
+    ):
+        # Arrange
+        v_input = v_str
+        # Act
+        result = to_vec(v_input, enable_fallback=False)
+        # Assert
+        assert result == expected
 
-        result = to_vec("∇φ", enable_fallback=False)
-        assert result == r"\overrightarrow{\mathrm{∇φ}}"
-
-    def test_spaces(self):
-        """Test with strings containing spaces."""
-        result = to_vec("A B", enable_fallback=False)
-        assert result == r"\overrightarrow{\mathrm{A B}}"
-
-        result = to_vec(" CD ", enable_fallback=False)
-        assert result == r"\overrightarrow{\mathrm{ CD }}"
-
-    def test_latex_special_chars(self):
-        """Test with characters that have special meaning in LaTeX."""
-        result = to_vec("$x$", enable_fallback=False)
-        assert result == r"\overrightarrow{\mathrm{$x$}}"
-
-        result = to_vec("a&b", enable_fallback=False)
-        assert result == r"\overrightarrow{\mathrm{a&b}}"
-
-        result = to_vec("x^2", enable_fallback=False)
-        assert result == r"\overrightarrow{\mathrm{x^2}}"
-
-    def test_braces(self):
-        """Test with braces in input."""
-        result = to_vec("{AB}", enable_fallback=False)
-        assert result == r"\overrightarrow{\mathrm{{AB}}}"
-
-        result = to_vec("a{b}c", enable_fallback=False)
-        assert result == r"\overrightarrow{\mathrm{a{b}c}}"
-
-    def test_escape_sequences(self):
-        """Test with escape sequences."""
-        result = to_vec(r"\vec", enable_fallback=False)
+    def test_to_vec_backslash_command_input_emits_overrightarrow_form(self):
+        # Arrange
+        v_str = r"\vec"
+        # Act
+        result = to_vec(v_str, enable_fallback=False)
+        # Assert
         assert result == r"\overrightarrow{\mathrm{\vec}}"
 
-        result = to_vec("A\nB", enable_fallback=False)
+    def test_to_vec_input_with_newline_preserves_newline_in_output(self):
+        # Arrange
+        v_str = "A\nB"
+        # Act
+        result = to_vec(v_str, enable_fallback=False)
+        # Assert
         assert result == "\\overrightarrow{\\mathrm{A\nB}}"
 
-    def test_mathematical_notation(self):
-        """Test with common mathematical vector notations."""
-        result = to_vec("r", enable_fallback=False)
-        assert result == r"\overrightarrow{\mathrm{r}}"
+    @pytest.mark.parametrize(
+        "v_str,expected",
+        [
+            ("r", r"\overrightarrow{\mathrm{r}}"),
+            ("F", r"\overrightarrow{\mathrm{F}}"),
+            ("r_0", r"\overrightarrow{\mathrm{r_0}}"),
+        ],
+    )
+    def test_to_vec_physics_notation_emits_expected_overrightarrow_form(
+        self, v_str, expected
+    ):
+        # Arrange
+        v_input = v_str
+        # Act
+        result = to_vec(v_input, enable_fallback=False)
+        # Assert
+        assert result == expected
 
-        result = to_vec("F", enable_fallback=False)
-        assert result == r"\overrightarrow{\mathrm{F}}"
-
-        result = to_vec("r_0", enable_fallback=False)
-        assert result == r"\overrightarrow{\mathrm{r_0}}"
-
-    def test_raw_string_output(self):
-        """Test that output is valid raw string for LaTeX."""
-        result = to_vec("PQ", enable_fallback=False)
+    def test_to_vec_output_contains_overrightarrow_command_substring(self):
+        # Arrange
+        v_str = "PQ"
+        # Act
+        result = to_vec(v_str, enable_fallback=False)
+        # Assert
         assert r"\overrightarrow" in result
+
+    def test_to_vec_output_contains_mathrm_command_substring(self):
+        # Arrange
+        v_str = "PQ"
+        # Act
+        result = to_vec(v_str, enable_fallback=False)
+        # Assert
         assert r"\mathrm" in result
+
+    def test_to_vec_output_contains_braced_label_substring(self):
+        # Arrange
+        v_str = "PQ"
+        # Act
+        result = to_vec(v_str, enable_fallback=False)
+        # Assert
         assert "{PQ}" in result
 
-    def test_edge_cases(self):
-        """Test edge cases and boundary conditions."""
+    def test_to_vec_one_hundred_char_label_renders_full_label_in_output(self):
+        # Arrange
         long_str = "A" * 100
+        # Act
         result = to_vec(long_str, enable_fallback=False)
+        # Assert
         assert result == rf"\overrightarrow{{\mathrm{{{long_str}}}}}"
 
-        result = to_vec("_-_-_", enable_fallback=False)
+    def test_to_vec_punctuation_only_input_emits_overrightarrow_form(self):
+        # Arrange
+        v_str = "_-_-_"
+        # Act
+        result = to_vec(v_str, enable_fallback=False)
+        # Assert
         assert result == r"\overrightarrow{\mathrm{_-_-_}}"
 
-        result = to_vec("123456", enable_fallback=False)
+    def test_to_vec_six_digit_label_emits_overrightarrow_form(self):
+        # Arrange
+        v_str = "123456"
+        # Act
+        result = to_vec(v_str, enable_fallback=False)
+        # Assert
         assert result == r"\overrightarrow{\mathrm{123456}}"
+
+
+# =============================================================================
+# to_vec — fallback enabled (default behaviour)
+# =============================================================================
 
 
 class TestToVecWithFallback:
     """Tests for to_vec with enable_fallback=True (default behavior)."""
 
-    def test_basic_vector_fallback(self):
-        """Test basic vector with fallback enabled returns unicode."""
-        result = to_vec("AB")  # default enable_fallback=True
-        # When fallback is available, returns unicode combining arrow
-        if FALLBACK_AVAILABLE:
-            # Could be mathtext processed or unicode fallback
-            assert "AB" in result or "⃗" in result
-        else:
-            assert result == r"\overrightarrow{\mathrm{AB}}"
+    def test_to_vec_fallback_default_preserves_label_text_in_output(self):
+        # Arrange
+        v_str = "AB"
+        # Act
+        result = to_vec(v_str)
+        # Assert
+        condition = (
+            ("AB" in result or "⃗" in result)
+            if FALLBACK_AVAILABLE
+            else (result == r"\overrightarrow{\mathrm{AB}}")
+        )
+        assert condition
 
-    def test_empty_string_fallback(self):
-        """Test empty string returns empty with fallback enabled."""
-        result = to_vec("")
+    def test_to_vec_fallback_empty_string_returns_empty_string(self):
+        # Arrange
+        v_str = ""
+        # Act
+        result = to_vec(v_str)
+        # Assert
         assert result == ""
 
-    def test_fallback_preserves_content(self):
-        """Test that the vector content is preserved in fallback output."""
-        result = to_vec("XYZ")
+    def test_to_vec_fallback_preserves_content_label_substring(self):
+        # Arrange
+        v_str = "XYZ"
+        # Act
+        result = to_vec(v_str)
+        # Assert
         assert "X" in result or "XYZ" in result
 
-    def test_unicode_fallback_strategy(self):
-        """Test explicit unicode fallback strategy."""
-        result = to_vec("AB", fallback_strategy="unicode")
-        if FALLBACK_AVAILABLE:
-            assert result == "AB⃗"
-        else:
-            assert result == r"\overrightarrow{\mathrm{AB}}"
+    def test_to_vec_fallback_strategy_unicode_returns_combining_arrow_form(
+        self,
+    ):
+        # Arrange
+        v_str = "AB"
+        expected = "AB⃗" if FALLBACK_AVAILABLE else r"\overrightarrow{\mathrm{AB}}"
+        # Act
+        result = to_vec(v_str, fallback_strategy="unicode")
+        # Assert
+        assert result == expected
 
-    def test_plain_fallback_strategy(self):
-        """Test explicit plain fallback strategy."""
-        result = to_vec("AB", fallback_strategy="plain")
-        if FALLBACK_AVAILABLE:
-            assert result == "vec(AB)"
-        else:
-            assert result == r"\overrightarrow{\mathrm{AB}}"
+    def test_to_vec_fallback_strategy_plain_returns_vec_function_form(self):
+        # Arrange
+        v_str = "AB"
+        expected = "vec(AB)" if FALLBACK_AVAILABLE else r"\overrightarrow{\mathrm{AB}}"
+        # Act
+        result = to_vec(v_str, fallback_strategy="plain")
+        # Assert
+        assert result == expected
+
+
+# =============================================================================
+# to_vec — consistency / type
+# =============================================================================
 
 
 class TestToVecConsistency:
     """Tests for consistent behavior of to_vec."""
 
-    def test_repeated_calls_consistent(self):
-        """Test that repeated calls produce consistent results."""
+    def test_to_vec_two_identical_calls_produce_identical_output(self):
+        # Arrange
         input_str = "XY"
+        # Act
         result1 = to_vec(input_str, enable_fallback=False)
         result2 = to_vec(input_str, enable_fallback=False)
-        assert result1 == result2 == r"\overrightarrow{\mathrm{XY}}"
+        # Assert
+        assert result1 == result2
 
-    def test_type_preservation(self):
-        """Test that function returns string type."""
-        result = to_vec("AB", enable_fallback=False)
+    def test_to_vec_call_returns_expected_overrightarrow_for_xy(self):
+        # Arrange
+        input_str = "XY"
+        # Act
+        result = to_vec(input_str, enable_fallback=False)
+        # Assert
+        assert result == r"\overrightarrow{\mathrm{XY}}"
+
+    def test_to_vec_two_letter_label_returns_str_instance(self):
+        # Arrange
+        input_str = "AB"
+        # Act
+        result = to_vec(input_str, enable_fallback=False)
+        # Assert
         assert isinstance(result, str)
 
-        result = to_vec("")
+    def test_to_vec_empty_input_returns_str_instance(self):
+        # Arrange
+        input_str = ""
+        # Act
+        result = to_vec(input_str)
+        # Assert
         assert isinstance(result, str)
 
-        result = to_vec("test")
+    def test_to_vec_simple_input_returns_str_instance(self):
+        # Arrange
+        input_str = "test"
+        # Act
+        result = to_vec(input_str)
+        # Assert
         assert isinstance(result, str)
 
-    def test_practical_usage(self):
-        """Test practical usage in LaTeX documents."""
+    def test_to_vec_label_ab_output_starts_with_overrightarrow(self):
+        # Arrange
+        input_str = "AB"
+        # Act
+        result = to_vec(input_str, enable_fallback=False)
+        # Assert
+        assert result.startswith(r"\overrightarrow")
+
+    def test_to_vec_label_bc_output_starts_with_overrightarrow(self):
+        # Arrange
+        input_str = "BC"
+        # Act
+        result = to_vec(input_str, enable_fallback=False)
+        # Assert
+        assert result.startswith(r"\overrightarrow")
+
+    def test_to_vec_concatenated_expression_contains_overrightarrow_ab(self):
+        # Arrange
         vec_ab = to_vec("AB", enable_fallback=False)
         vec_bc = to_vec("BC", enable_fallback=False)
-
-        assert vec_ab.startswith(r"\overrightarrow")
-        assert vec_bc.startswith(r"\overrightarrow")
-
+        # Act
         latex_expr = f"{vec_ab} + {vec_bc}"
+        # Assert
         assert r"\overrightarrow{\mathrm{AB}}" in latex_expr
+
+    def test_to_vec_concatenated_expression_contains_overrightarrow_bc(self):
+        # Arrange
+        vec_ab = to_vec("AB", enable_fallback=False)
+        vec_bc = to_vec("BC", enable_fallback=False)
+        # Act
+        latex_expr = f"{vec_ab} + {vec_bc}"
+        # Assert
         assert r"\overrightarrow{\mathrm{BC}}" in latex_expr
 
 
+# =============================================================================
+# safe_to_vec
+# =============================================================================
+
+
 class TestSafeToVec:
-    """Tests for safe_to_vec function."""
+    """Tests for safe_to_vec function (always fallback-enabled)."""
 
-    def test_safe_to_vec_basic(self):
-        """Test safe_to_vec with basic input."""
-        result = safe_to_vec("AB")
-        # safe_to_vec always has enable_fallback=True
-        if FALLBACK_AVAILABLE:
-            assert "AB" in result or "⃗" in result
-        else:
-            assert result == r"\overrightarrow{\mathrm{AB}}"
+    def test_safe_to_vec_basic_label_preserves_content_in_output(self):
+        # Arrange
+        v_str = "AB"
+        # Act
+        result = safe_to_vec(v_str)
+        # Assert
+        condition = (
+            ("AB" in result or "⃗" in result)
+            if FALLBACK_AVAILABLE
+            else (result == r"\overrightarrow{\mathrm{AB}}")
+        )
+        assert condition
 
-    def test_safe_to_vec_unicode_strategy(self):
-        """Test safe_to_vec with unicode strategy."""
-        result = safe_to_vec("AB", fallback_strategy="unicode")
-        if FALLBACK_AVAILABLE:
-            assert result == "AB⃗"
-        else:
-            assert result == r"\overrightarrow{\mathrm{AB}}"
+    def test_safe_to_vec_unicode_strategy_returns_combining_arrow_form(self):
+        # Arrange
+        v_str = "AB"
+        expected = "AB⃗" if FALLBACK_AVAILABLE else r"\overrightarrow{\mathrm{AB}}"
+        # Act
+        result = safe_to_vec(v_str, fallback_strategy="unicode")
+        # Assert
+        assert result == expected
 
-    def test_safe_to_vec_plain_strategy(self):
-        """Test safe_to_vec with plain strategy."""
-        result = safe_to_vec("AB", fallback_strategy="plain")
-        if FALLBACK_AVAILABLE:
-            assert result == "vec(AB)"
-        else:
-            assert result == r"\overrightarrow{\mathrm{AB}}"
+    def test_safe_to_vec_plain_strategy_returns_vec_function_form(self):
+        # Arrange
+        v_str = "AB"
+        expected = (
+            "vec(AB)" if FALLBACK_AVAILABLE else r"\overrightarrow{\mathrm{AB}}"
+        )
+        # Act
+        result = safe_to_vec(v_str, fallback_strategy="plain")
+        # Assert
+        assert result == expected
 
-    def test_safe_to_vec_empty(self):
-        """Test safe_to_vec with empty string."""
-        result = safe_to_vec("")
+    def test_safe_to_vec_empty_input_returns_empty_string(self):
+        # Arrange
+        v_str = ""
+        # Act
+        result = safe_to_vec(v_str)
+        # Assert
         assert result == ""
 
 
+# =============================================================================
+# vector_notation alias
+# =============================================================================
+
+
 class TestVectorNotationAlias:
-    """Tests for vector_notation alias."""
+    """Tests for vector_notation alias of to_vec."""
 
-    def test_vector_notation_is_to_vec(self):
-        """Test that vector_notation is alias for to_vec."""
-        assert vector_notation is to_vec
+    def test_vector_notation_is_same_object_as_to_vec(self):
+        # Arrange
+        alias = vector_notation
+        # Act
+        same = alias is to_vec
+        # Assert
+        assert same
 
-    def test_vector_notation_works(self):
-        """Test that vector_notation produces same results."""
-        result = vector_notation("AB", enable_fallback=False)
+    def test_vector_notation_returns_same_output_as_to_vec_for_label_ab(self):
+        # Arrange
+        input_str = "AB"
+        # Act
+        result = vector_notation(input_str, enable_fallback=False)
+        # Assert
         assert result == r"\overrightarrow{\mathrm{AB}}"
 
 
+# =============================================================================
+# FALLBACK_AVAILABLE flag
+# =============================================================================
+
+
 class TestFallbackAvailability:
-    """Tests for fallback availability handling."""
+    """Tests for fallback availability flag handling."""
 
-    def test_fallback_available_flag(self):
-        """Test FALLBACK_AVAILABLE is a boolean."""
-        assert isinstance(FALLBACK_AVAILABLE, bool)
+    def test_fallback_available_module_constant_is_bool_instance(self):
+        # Arrange
+        flag = FALLBACK_AVAILABLE
+        # Act
+        is_bool = isinstance(flag, bool)
+        # Assert
+        assert is_bool
 
-    def test_behavior_without_fallback_module(self):
-        """Test behavior when fallback is disabled."""
-        result = to_vec("test", enable_fallback=False)
+    def test_to_vec_disable_fallback_returns_raw_latex_form_for_test_label(
+        self,
+    ):
+        # Arrange
+        v_str = "test"
+        # Act
+        result = to_vec(v_str, enable_fallback=False)
+        # Assert
         assert result == r"\overrightarrow{\mathrm{test}}"
 
 
 if __name__ == "__main__":
-    import os
-
-    import pytest
-
     pytest.main([os.path.abspath(__file__)])
 
-# --------------------------------------------------------------------------------
-# Start of Source Code from: /home/ywatanabe/proj/scitex-code/src/scitex/tex/_to_vec.py
-# --------------------------------------------------------------------------------
-# #!/usr/bin/env python3
-# # -*- coding: utf-8 -*-
-# # Time-stamp: "2025-06-05 12:00:00 (ywatanabe)"
-# # File: ./src/scitex/tex/_to_vec.py
-#
-# """
-# LaTeX vector notation with fallback mechanisms.
-#
-# Functionality:
-#     - Convert strings to LaTeX vector notation with automatic fallback
-#     - Handle LaTeX rendering failures gracefully
-# Input:
-#     String representation of vector
-# Output:
-#     LaTeX vector notation with fallback support
-# Prerequisites:
-#     scitex.str._latex_fallback
-# """
-#
-# try:
-#     from scitex.str._latex_fallback import safe_latex_render, latex_fallback_decorator
-#
-#     FALLBACK_AVAILABLE = True
-# except ImportError:
-#     FALLBACK_AVAILABLE = False
-#
-#     def latex_fallback_decorator(fallback_strategy="auto", preserve_math=True):
-#         def decorator(func):
-#             return func
-#
-#         return decorator
-#
-#     def safe_latex_render(text, fallback_strategy="auto", preserve_math=True):
-#         return text
-#
-#
-# @latex_fallback_decorator(fallback_strategy="auto", preserve_math=True)
-# def to_vec(v_str, enable_fallback=True, fallback_strategy="auto"):
-#     r"""
-#     Convert a string to LaTeX vector notation with automatic fallback.
-#
-#     Parameters
-#     ----------
-#     v_str : str
-#         String representation of the vector
-#     enable_fallback : bool, optional
-#         Whether to enable LaTeX fallback mechanisms, by default True
-#     fallback_strategy : str, optional
-#         Fallback strategy: "auto", "mathtext", "unicode", "plain", by default "auto"
-#
-#     Returns
-#     -------
-#     str
-#         LaTeX representation of the vector with automatic fallback
-#
-#     Examples
-#     --------
-#     >>> vector = to_vec("AB")
-#     >>> print(vector)  # LaTeX: \overrightarrow{\mathrm{AB}}
-#
-#     >>> vector = to_vec("AB")  # Falls back to unicode if LaTeX fails
-#     >>> print(vector)  # Unicode: A⃗B or AB⃗
-#
-#     Notes
-#     -----
-#     If LaTeX rendering fails, this function automatically falls back to:
-#     - mathtext: Uses matplotlib's built-in math rendering
-#     - unicode: Uses Unicode vector symbols (⃗)
-#     - plain: Returns plain text with "vec()" notation
-#     """
-#     if not v_str:
-#         return ""
-#
-#     # Create LaTeX vector notation
-#     latex_vector = f"\\overrightarrow{{\\mathrm{{{v_str}}}}}"
-#
-#     if enable_fallback and FALLBACK_AVAILABLE:
-#         # Custom fallback handling for vectors
-#         if fallback_strategy == "auto":
-#             # Try mathtext first, then unicode
-#             try:
-#                 mathtext_result = safe_latex_render(f"${latex_vector}$", "mathtext")
-#                 return mathtext_result
-#             except Exception:
-#                 # Fall back to unicode vector notation
-#                 return f"{v_str}⃗"  # Unicode combining right arrow above
-#         elif fallback_strategy == "unicode":
-#             return f"{v_str}⃗"  # Unicode combining right arrow above
-#         elif fallback_strategy == "plain":
-#             return f"vec({v_str})"
-#         else:
-#             return safe_latex_render(f"${latex_vector}$", fallback_strategy)
-#     else:
-#         return latex_vector
-#
-#
-# def safe_to_vec(v_str, fallback_strategy="auto"):
-#     """
-#     Safe version of to_vec with explicit fallback control.
-#
-#     Parameters
-#     ----------
-#     v_str : str
-#         String representation of the vector
-#     fallback_strategy : str, optional
-#         Explicit fallback strategy: "auto", "mathtext", "unicode", "plain"
-#
-#     Returns
-#     -------
-#     str
-#         Vector notation with specified fallback behavior
-#     """
-#     return to_vec(v_str, enable_fallback=True, fallback_strategy=fallback_strategy)
-#
-#
-# # Backward compatibility
-# vector_notation = to_vec
-#
-# # EOF
-
-# --------------------------------------------------------------------------------
-# End of Source Code from: /home/ywatanabe/proj/scitex-code/src/scitex/tex/_to_vec.py
-# --------------------------------------------------------------------------------
+# EOF

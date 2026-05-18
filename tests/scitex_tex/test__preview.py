@@ -1,645 +1,209 @@
 #!/usr/bin/env python3
-# Time-stamp: "2026-01-05 14:00:00 (ywatanabe)"
-# File: ./tests/scitex/tex/test__preview.py
+# Time-stamp: "2026-05-18 22:51:00 (ywatanabe)"
+# File: ./tests/scitex_tex/test__preview.py
 
-"""Comprehensive tests for tex._preview module"""
+"""Real-integration tests for tex._preview module.
 
-from unittest.mock import Mock, patch
+The previous version of this file was pure mock theater: every test
+patched `scitex.plt.subplots` and then asserted on the resulting Mock
+calls. The whole content was already `@pytest.mark.skip`-ed as stale
+post-figrecipe drift, so per the SciTeX no-mocks rule
+(`02_package_12_no-mocks.md`, "Honest delete > dishonest rewrite") we
+delete the mock-shaped tests and replace them with a small set of
+real integration tests that drive the actual `preview()` function
+against a real Matplotlib backend.
 
-import numpy as np
+Test-quality rules (PA-307 / STX-TQ001-007):
+- Descriptive names (≥3 word-tokens after `test_`)
+- AAA marker comments
+- One assertion per test
+"""
+
 import pytest
 
-# Required for scitex.tex module
 matplotlib = pytest.importorskip("matplotlib")
-matplotlib.use("Agg")  # Use non-interactive backend for testing
-
-# scitex_tex._preview imports `from scitex.plt import subplots` at call time,
-# and the tests patch `scitex.plt.subplots`. Skip the whole module when the
-# umbrella `scitex` package is not installed (e.g. minimal CI env).
-pytest.importorskip("scitex.plt")
-
-from matplotlib.axes import Axes
-from matplotlib.figure import Figure
-
-from scitex_tex._preview import FALLBACK_AVAILABLE
-
-
-@pytest.mark.skip(
-    reason="Stale post-figrecipe refactor: source now uses figrecipe's "
-    "RecordingFigure (not matplotlib.Figure), and the call path goes through "
-    "the figrecipe wrapper which doesn't honour these mock paths. Needs a "
-    "coherent rewrite against the new RecordingFigure API."
-)
-class TestPreviewWithoutFallback:
-    """Tests for preview function with enable_fallback=False."""
-
-    def test_preview_single_tex_string(self):
-        """Test preview with single LaTeX string."""
-        from scitex_tex import preview
-
-        with patch("scitex.plt.subplots") as mock_subplots:
-            mock_fig = Mock(spec=Figure)
-            mock_ax = Mock(spec=Axes)
-            mock_ax.text = Mock()
-            mock_ax.hide_spines = Mock()
-            mock_fig.tight_layout = Mock()
-            mock_subplots.return_value = (mock_fig, mock_ax)
-
-            result = preview(["x^2"], enable_fallback=False)
-
-            assert result == mock_fig
-            mock_subplots.assert_called_once_with(nrows=1, ncols=1, figsize=(10, 3))
-            assert mock_ax.text.call_count == 2
-            mock_ax.text.assert_any_call(
-                0.5, 0.7, "x^2", fontsize=20, ha="center", va="center"
-            )
-            mock_ax.text.assert_any_call(
-                0.5, 0.3, "$x^2$", fontsize=20, ha="center", va="center"
-            )
-            mock_ax.hide_spines.assert_called_once()
-            mock_fig.tight_layout.assert_called_once()
-
-    def test_preview_multiple_tex_strings(self):
-        """Test preview with multiple LaTeX strings."""
-        from scitex_tex import preview
-
-        with patch("scitex.plt.subplots") as mock_subplots:
-            mock_fig = Mock(spec=Figure)
-            mock_axes = [Mock(spec=Axes) for _ in range(3)]
-            for ax in mock_axes:
-                ax.text = Mock()
-                ax.hide_spines = Mock()
-            mock_fig.tight_layout = Mock()
-            mock_subplots.return_value = (mock_fig, mock_axes)
-
-            tex_strings = ["x^2", r"\sum_{i=1}^n i", r"\frac{a}{b}"]
-            result = preview(tex_strings, enable_fallback=False)
-
-            assert result == mock_fig
-            mock_subplots.assert_called_once_with(nrows=3, ncols=1, figsize=(10, 9))
-
-            for ax, tex_str in zip(mock_axes, tex_strings):
-                assert ax.text.call_count == 2
-                ax.text.assert_any_call(
-                    0.5, 0.7, tex_str, fontsize=20, ha="center", va="center"
-                )
-                ax.text.assert_any_call(
-                    0.5, 0.3, f"${tex_str}$", fontsize=20, ha="center", va="center"
-                )
-                ax.hide_spines.assert_called_once()
-
-            mock_fig.tight_layout.assert_called_once()
-
-    def test_preview_empty_list(self):
-        """Test preview with empty list."""
-        from scitex_tex import preview
-
-        with patch("scitex.plt.subplots") as mock_subplots:
-            mock_fig = Mock(spec=Figure)
-            mock_subplots.return_value = (mock_fig, np.array([]))
-            mock_fig.tight_layout = Mock()
-
-            result = preview([], enable_fallback=False)
-
-            assert result == mock_fig
-            mock_subplots.assert_called_once_with(nrows=0, ncols=1, figsize=(10, 0))
-            mock_fig.tight_layout.assert_called_once()
-
-    def test_preview_complex_latex(self):
-        """Test preview with complex LaTeX expressions."""
-        from scitex_tex import preview
-
-        with patch("scitex.plt.subplots") as mock_subplots:
-            mock_fig = Mock(spec=Figure)
-            mock_ax = Mock(spec=Axes)
-            mock_ax.text = Mock()
-            mock_ax.hide_spines = Mock()
-            mock_fig.tight_layout = Mock()
-            mock_subplots.return_value = (mock_fig, mock_ax)
-
-            complex_tex = r"\int_{-\infty}^{\infty} e^{-x^2} dx = \sqrt{\pi}"
-            result = preview([complex_tex], enable_fallback=False)
-
-            assert result == mock_fig
-            mock_ax.text.assert_any_call(
-                0.5, 0.7, complex_tex, fontsize=20, ha="center", va="center"
-            )
-            mock_ax.text.assert_any_call(
-                0.5, 0.3, f"${complex_tex}$", fontsize=20, ha="center", va="center"
-            )
-
-    def test_preview_special_characters(self):
-        """Test preview with special LaTeX characters."""
-        from scitex_tex import preview
-
-        with patch("scitex.plt.subplots") as mock_subplots:
-            mock_fig = Mock(spec=Figure)
-            mock_ax = Mock(spec=Axes)
-            mock_ax.text = Mock()
-            mock_ax.hide_spines = Mock()
-            mock_fig.tight_layout = Mock()
-            mock_subplots.return_value = (mock_fig, mock_ax)
-
-            special_tex = r"\alpha \beta \gamma \delta \epsilon"
-            result = preview([special_tex], enable_fallback=False)
-
-            assert result == mock_fig
-            mock_ax.text.assert_any_call(
-                0.5, 0.7, special_tex, fontsize=20, ha="center", va="center"
-            )
-            mock_ax.text.assert_any_call(
-                0.5, 0.3, f"${special_tex}$", fontsize=20, ha="center", va="center"
-            )
-
-    def test_preview_text_positioning(self):
-        """Test that text is positioned correctly."""
-        from scitex_tex import preview
-
-        with patch("scitex.plt.subplots") as mock_subplots:
-            mock_fig = Mock(spec=Figure)
-            mock_ax = Mock(spec=Axes)
-            mock_ax.text = Mock()
-            mock_ax.hide_spines = Mock()
-            mock_fig.tight_layout = Mock()
-            mock_subplots.return_value = (mock_fig, mock_ax)
-
-            result = preview(["E=mc^2"], enable_fallback=False)
-
-            calls = mock_ax.text.call_args_list
-            assert len(calls) == 2
-            # First call: raw string at y=0.7
-            assert calls[0][0] == (0.5, 0.7, "E=mc^2")
-            assert calls[0][1] == {"size": 20, "ha": "center", "va": "center"}
-            # Second call: LaTeX string at y=0.3
-            assert calls[1][0] == (0.5, 0.3, "$E=mc^2$")
-            assert calls[1][1] == {"size": 20, "ha": "center", "va": "center"}
-
-    def test_preview_figure_size_scaling(self):
-        """Test that figure size scales with number of strings."""
-        from scitex_tex import preview
-
-        with patch("scitex.plt.subplots") as mock_subplots:
-            mock_fig = Mock(spec=Figure)
-            mock_axes = [Mock(spec=Axes) for _ in range(5)]
-            for ax in mock_axes:
-                ax.text = Mock()
-                ax.hide_spines = Mock()
-            mock_fig.tight_layout = Mock()
-            mock_subplots.return_value = (mock_fig, mock_axes)
-
-            tex_strings = ["a", "b", "c", "d", "e"]
-            result = preview(tex_strings, enable_fallback=False)
-
-            mock_subplots.assert_called_once_with(nrows=5, ncols=1, figsize=(10, 15))
-
-    def test_preview_matrix_latex(self):
-        """Test preview with matrix LaTeX notation."""
-        from scitex_tex import preview
-
-        with patch("scitex.plt.subplots") as mock_subplots:
-            mock_fig = Mock(spec=Figure)
-            mock_ax = Mock(spec=Axes)
-            mock_ax.text = Mock()
-            mock_ax.hide_spines = Mock()
-            mock_fig.tight_layout = Mock()
-            mock_subplots.return_value = (mock_fig, mock_ax)
-
-            matrix_tex = r"\begin{pmatrix} a & b \\ c & d \end{pmatrix}"
-            result = preview([matrix_tex], enable_fallback=False)
-
-            assert result == mock_fig
-            mock_ax.text.assert_any_call(
-                0.5, 0.7, matrix_tex, fontsize=20, ha="center", va="center"
-            )
-            mock_ax.text.assert_any_call(
-                0.5, 0.3, f"${matrix_tex}$", fontsize=20, ha="center", va="center"
-            )
-
-
-@pytest.mark.skip(reason="Stale post-figrecipe refactor; needs coherent rewrite against RecordingFigure API.")
-class TestPreviewWithFallback:
-    """Tests for preview function with enable_fallback=True (default)."""
-
-    def test_preview_with_fallback_enabled(self):
-        """Test preview with fallback enabled (default)."""
-        from scitex_tex import preview
-
-        with patch("scitex.plt.subplots") as mock_subplots:
-            mock_fig = Mock(spec=Figure)
-            mock_ax = Mock(spec=Axes)
-            mock_ax.text = Mock()
-            mock_ax.hide_spines = Mock()
-            mock_fig.tight_layout = Mock()
-            mock_subplots.return_value = (mock_fig, mock_ax)
-
-            result = preview(["x^2"])  # default enable_fallback=True
-
-            assert result == mock_fig
-            assert mock_ax.text.call_count == 2
-            # When fallback is available, text may be converted
-            if FALLBACK_AVAILABLE:
-                # Verify text was called twice (raw and latex formatted)
-                calls = mock_ax.text.call_args_list
-                # First call is raw at y=0.7
-                assert calls[0][0][0] == 0.5
-                assert calls[0][0][1] == 0.7
-                # Second call is latex at y=0.3
-                assert calls[1][0][0] == 0.5
-                assert calls[1][0][1] == 0.3
-
-    def test_preview_fallback_converts_text(self):
-        """Test that fallback converts superscripts to unicode."""
-        from scitex_tex import preview
-
-        if not FALLBACK_AVAILABLE:
-            pytest.skip("Fallback module not available")
-
-        with patch("scitex.plt.subplots") as mock_subplots:
-            mock_fig = Mock(spec=Figure)
-            mock_ax = Mock(spec=Axes)
-            mock_ax.text = Mock()
-            mock_ax.hide_spines = Mock()
-            mock_fig.tight_layout = Mock()
-            mock_subplots.return_value = (mock_fig, mock_ax)
-
-            result = preview(["x^2"])
-
-            calls = mock_ax.text.call_args_list
-            # First call (raw at y=0.7) should have unicode conversion
-            first_call_text = calls[0][0][2]
-            # Should contain unicode superscript 2
-            assert "x" in first_call_text
-            # The second character should be superscript 2 (²)
-            assert "²" in first_call_text or "^" in first_call_text
-
-
-@pytest.mark.skip(reason="Stale post-figrecipe refactor; needs coherent rewrite against RecordingFigure API.")
-class TestPreviewEdgeCases:
-    """Tests for edge cases in preview function."""
-
-    def test_preview_single_string_input(self):
-        """Test preview converts single string to list."""
-        from scitex_tex import preview
-
-        with patch("scitex.plt.subplots") as mock_subplots:
-            mock_fig = Mock(spec=Figure)
-            mock_ax = Mock(spec=Axes)
-            mock_ax.text = Mock()
-            mock_ax.hide_spines = Mock()
-            mock_fig.tight_layout = Mock()
-            mock_subplots.return_value = (mock_fig, mock_ax)
-
-            # Single string should be converted to list
-            result = preview("x^2", enable_fallback=False)
-
-            assert result == mock_fig
-            mock_subplots.assert_called_once_with(nrows=1, ncols=1, figsize=(10, 3))
-
-    def test_preview_with_numpy_array_axes(self):
-        """Test preview handles numpy array of axes correctly."""
-        from scitex_tex import preview
-
-        with patch("scitex.plt.subplots") as mock_subplots:
-            mock_fig = Mock(spec=Figure)
-            mock_ax = Mock(spec=Axes)
-            mock_ax.text = Mock()
-            mock_ax.hide_spines = Mock()
-            mock_fig.tight_layout = Mock()
-            mock_subplots.return_value = (mock_fig, np.array(mock_ax))
-
-            result = preview(["test"], enable_fallback=False)
-
-            assert result == mock_fig
-            mock_ax.text.assert_any_call(
-                0.5, 0.7, "test", fontsize=20, ha="center", va="center"
-            )
-
-    def test_preview_unicode_strings(self):
-        """Test preview with Unicode strings."""
-        from scitex_tex import preview
-
-        with patch("scitex.plt.subplots") as mock_subplots:
-            mock_fig = Mock(spec=Figure)
-            mock_ax = Mock(spec=Axes)
-            mock_ax.text = Mock()
-            mock_ax.hide_spines = Mock()
-            mock_fig.tight_layout = Mock()
-            mock_subplots.return_value = (mock_fig, mock_ax)
-
-            unicode_tex = "∑ᵢ₌₁ⁿ xᵢ²"
-            result = preview([unicode_tex], enable_fallback=False)
-
-            assert result == mock_fig
-            mock_ax.text.assert_any_call(
-                0.5, 0.7, unicode_tex, fontsize=20, ha="center", va="center"
-            )
-            mock_ax.text.assert_any_call(
-                0.5, 0.3, f"${unicode_tex}$", fontsize=20, ha="center", va="center"
-            )
-
-    def test_preview_already_wrapped_in_dollars(self):
-        """Test preview handles strings already wrapped in $ correctly."""
-        from scitex_tex import preview
-
-        with patch("scitex.plt.subplots") as mock_subplots:
-            mock_fig = Mock(spec=Figure)
-            mock_ax = Mock(spec=Axes)
-            mock_ax.text = Mock()
-            mock_ax.hide_spines = Mock()
-            mock_fig.tight_layout = Mock()
-            mock_subplots.return_value = (mock_fig, mock_ax)
-
-            # Already wrapped in $ should not double wrap
-            result = preview(["$x^2$"], enable_fallback=False)
-
-            assert result == mock_fig
-            calls = mock_ax.text.call_args_list
-            # Second call should use the string as-is (no double wrapping)
-            assert calls[1][0][2] == "$x^2$"
-
-
-@pytest.mark.skip(reason="Stale post-figrecipe refactor; needs coherent rewrite against RecordingFigure API.")
-class TestPreviewErrorHandling:
-    """Tests for error handling in preview function."""
-
-    def test_preview_error_recovery(self):
-        """Test preview handles errors gracefully."""
-        from scitex_tex import preview
-
-        with patch("scitex.plt.subplots") as mock_subplots:
-            mock_fig = Mock(spec=Figure)
-            mock_ax = Mock(spec=Axes)
-            mock_ax.text = Mock()
-            mock_ax.hide_spines = Mock()
-            mock_fig.tight_layout = Mock(side_effect=Exception("Layout error"))
-            mock_subplots.return_value = (mock_fig, mock_ax)
-
-            with pytest.raises(Exception, match="Layout error"):
-                preview(["test"], enable_fallback=False)
-
-    def test_preview_none_input(self):
-        """Test preview with None input - wraps in list and proceeds."""
-        from scitex_tex import preview
-
-        with patch("scitex.plt.subplots") as mock_subplots:
-            mock_fig = Mock(spec=Figure)
-            mock_ax = Mock(spec=Axes)
-            mock_ax.text = Mock()
-            mock_ax.hide_spines = Mock()
-            mock_fig.tight_layout = Mock()
-            mock_subplots.return_value = (mock_fig, mock_ax)
-
-            # None gets wrapped in list: [None], nrows=1
-            result = preview(None, enable_fallback=False)
-            assert result == mock_fig
-            mock_subplots.assert_called_once_with(nrows=1, ncols=1, figsize=(10, 3))
-
-    def test_preview_int_input(self):
-        """Test preview with int input - wraps in list and proceeds."""
-        from scitex_tex import preview
-
-        with patch("scitex.plt.subplots") as mock_subplots:
-            mock_fig = Mock(spec=Figure)
-            mock_ax = Mock(spec=Axes)
-            mock_ax.text = Mock()
-            mock_ax.hide_spines = Mock()
-            mock_fig.tight_layout = Mock()
-            mock_subplots.return_value = (mock_fig, mock_ax)
-
-            # int gets wrapped in list: [123], nrows=1
-            result = preview(123, enable_fallback=False)
-            assert result == mock_fig
-            mock_subplots.assert_called_once_with(nrows=1, ncols=1, figsize=(10, 3))
-
-
-@pytest.mark.skip(reason="Stale post-figrecipe refactor; needs coherent rewrite against RecordingFigure API.")
-class TestPreviewPerformance:
-    """Tests for preview performance."""
-
-    def test_preview_long_list_performance(self):
-        """Test preview performance with many LaTeX strings."""
-        import time
-
-        from scitex_tex import preview
-
-        with patch("scitex.plt.subplots") as mock_subplots:
-            mock_fig = Mock(spec=Figure)
-            mock_axes = [Mock(spec=Axes) for _ in range(100)]
-            for ax in mock_axes:
-                ax.text = Mock()
-                ax.hide_spines = Mock()
-            mock_fig.tight_layout = Mock()
-            mock_subplots.return_value = (mock_fig, mock_axes)
-
-            tex_strings = [f"x^{{{i}}}" for i in range(100)]
-
-            start_time = time.time()
-            result = preview(tex_strings, enable_fallback=False)
-            elapsed = time.time() - start_time
-
-            assert elapsed < 1.0
-            assert result == mock_fig
-
-
-@pytest.mark.skip(reason="Stale post-figrecipe refactor; needs coherent rewrite against RecordingFigure API.")
-class TestPreviewMixedContent:
-    """Tests for preview with mixed content types."""
-
-    def test_preview_mixed_content(self):
-        """Test preview with mixed LaTeX and plain text."""
-        from scitex_tex import preview
-
-        with patch("scitex.plt.subplots") as mock_subplots:
-            mock_fig = Mock(spec=Figure)
-            mock_axes = [Mock(spec=Axes) for _ in range(3)]
-            for ax in mock_axes:
-                ax.text = Mock()
-                ax.hide_spines = Mock()
-            mock_fig.tight_layout = Mock()
-            mock_subplots.return_value = (mock_fig, mock_axes)
-
-            mixed_content = ["Plain text", r"\LaTeX", "x + y = z"]
-            result = preview(mixed_content, enable_fallback=False)
-
-            assert result == mock_fig
-            for ax, content in zip(mock_axes, mixed_content):
-                ax.text.assert_any_call(
-                    0.5, 0.7, content, fontsize=20, ha="center", va="center"
-                )
-                ax.text.assert_any_call(
-                    0.5, 0.3, f"${content}$", fontsize=20, ha="center", va="center"
-                )
-
-
-@pytest.mark.skip(reason="Stale post-figrecipe refactor; needs coherent rewrite against RecordingFigure API.")
-class TestPreviewDocstrings:
-    """Tests for docstring examples."""
-
-    def test_preview_docstring_example(self):
-        """Test the example from the docstring works."""
-        from scitex_tex import preview
-
-        with patch("scitex.plt.subplots") as mock_subplots:
-            mock_fig = Mock(spec=Figure)
-            mock_axes = [Mock(spec=Axes) for _ in range(3)]
-            for ax in mock_axes:
-                ax.text = Mock()
-                ax.hide_spines = Mock()
-            mock_fig.tight_layout = Mock()
-            mock_subplots.return_value = (mock_fig, mock_axes)
-
-            # Example from docstring
-            tex_strings = ["x^2", r"\sum_{i=1}^n i", r"\alpha + \beta"]
-            fig = preview(tex_strings, enable_fallback=False)
-
-            assert fig == mock_fig
-
-            # Verify strings were rendered
-            mock_axes[0].text.assert_any_call(
-                0.5, 0.7, "x^2", fontsize=20, ha="center", va="center"
-            )
-            mock_axes[0].text.assert_any_call(
-                0.5, 0.3, "$x^2$", fontsize=20, ha="center", va="center"
-            )
+matplotlib.use("Agg")  # Non-interactive backend for headless test runs
+
+# `scitex_tex._preview` imports `from scitex_plt import subplots` at
+# call time. Skip the entire module if scitex-plt is not available
+# (e.g. minimal CI env).
+pytest.importorskip("scitex_plt")
+
+from matplotlib.figure import Figure  # noqa: E402
+
+from scitex_tex._preview import FALLBACK_AVAILABLE, preview  # noqa: E402
+
+
+# =============================================================================
+# preview — real Matplotlib backend, no mocks
+# =============================================================================
+
+
+class TestPreviewReturnType:
+    """Tests asserting preview returns a real matplotlib Figure."""
+
+    def test_preview_single_latex_string_returns_real_matplotlib_figure(self):
+        # Arrange
+        tex_strings = ["x^2"]
+        # Act
+        fig = preview(tex_strings, enable_fallback=False)
+        # Assert
+        assert isinstance(fig, Figure)
+
+    def test_preview_multiple_latex_strings_returns_real_matplotlib_figure(
+        self,
+    ):
+        # Arrange
+        tex_strings = ["x^2", r"\sum_{i=1}^n i", r"\frac{a}{b}"]
+        # Act
+        fig = preview(tex_strings, enable_fallback=False)
+        # Assert
+        assert isinstance(fig, Figure)
+
+    def test_preview_with_fallback_enabled_returns_real_matplotlib_figure(self):
+        # Arrange
+        tex_strings = ["x^2"]
+        # Act
+        fig = preview(tex_strings)
+        # Assert
+        assert isinstance(fig, Figure)
+
+    def test_preview_single_string_input_is_auto_wrapped_into_list(self):
+        # Arrange
+        single_tex = "x^2"
+        # Act
+        fig = preview(single_tex, enable_fallback=False)
+        # Assert
+        assert isinstance(fig, Figure)
+
+
+# =============================================================================
+# preview — axes / figure layout
+# =============================================================================
+
+
+class TestPreviewFigureLayout:
+    """Tests asserting preview produces the expected axes layout."""
+
+    def test_preview_single_entry_input_produces_figure_with_one_axes(self):
+        # Arrange
+        tex_strings = ["x^2"]
+        # Act
+        fig = preview(tex_strings, enable_fallback=False)
+        # Assert
+        assert len(fig.axes) == 1
+
+    def test_preview_three_entry_input_produces_figure_with_three_axes(self):
+        # Arrange
+        tex_strings = ["x^2", r"\alpha", r"\beta"]
+        # Act
+        fig = preview(tex_strings, enable_fallback=False)
+        # Assert
+        assert len(fig.axes) == 3
+
+    def test_preview_five_entry_input_produces_figure_with_five_axes(self):
+        # Arrange
+        tex_strings = ["a", "b", "c", "d", "e"]
+        # Act
+        fig = preview(tex_strings, enable_fallback=False)
+        # Assert
+        assert len(fig.axes) == 5
+
+    def test_preview_three_entry_input_scales_figure_height_to_nine_inches(
+        self,
+    ):
+        # Arrange
+        tex_strings = ["x^2", r"\alpha", r"\beta"]
+        # Act
+        fig = preview(tex_strings, enable_fallback=False)
+        # Assert
+        assert fig.get_size_inches()[1] == pytest.approx(9.0)
+
+    def test_preview_one_entry_input_scales_figure_height_to_three_inches(
+        self,
+    ):
+        # Arrange
+        tex_strings = ["x^2"]
+        # Act
+        fig = preview(tex_strings, enable_fallback=False)
+        # Assert
+        assert fig.get_size_inches()[1] == pytest.approx(3.0)
+
+
+# =============================================================================
+# preview — text rendering content
+# =============================================================================
+
+
+def _all_text_strings_on_figure(fig):
+    """Collect every Text artist's string from every Axes on the figure."""
+    out = []
+    for ax in fig.axes:
+        for t in ax.texts:
+            out.append(t.get_text())
+    return out
+
+
+class TestPreviewTextContent:
+    """Tests asserting preview writes expected text artists."""
+
+    def test_preview_emits_raw_label_as_one_axis_text_artist(self):
+        # Arrange
+        tex_strings = ["MYLABEL"]
+        # Act
+        fig = preview(tex_strings, enable_fallback=False)
+        texts = _all_text_strings_on_figure(fig)
+        # Assert
+        assert "MYLABEL" in texts
+
+    def test_preview_emits_dollar_wrapped_label_as_second_text_artist(self):
+        # Arrange
+        tex_strings = ["MYLABEL"]
+        # Act
+        fig = preview(tex_strings, enable_fallback=False)
+        texts = _all_text_strings_on_figure(fig)
+        # Assert
+        assert "$MYLABEL$" in texts
+
+    def test_preview_already_dollar_wrapped_string_is_not_double_wrapped(self):
+        # Arrange
+        tex_strings = ["$x^2$"]
+        # Act
+        fig = preview(tex_strings, enable_fallback=False)
+        texts = _all_text_strings_on_figure(fig)
+        # Assert
+        assert "$$x^2$$" not in texts
+
+    def test_preview_emits_two_text_artists_per_input_string(self):
+        # Arrange
+        tex_strings = ["x^2"]
+        # Act
+        fig = preview(tex_strings, enable_fallback=False)
+        texts = _all_text_strings_on_figure(fig)
+        # Assert
+        assert len(texts) == 2
+
+
+# =============================================================================
+# FALLBACK_AVAILABLE flag
+# =============================================================================
 
 
 class TestFallbackAvailability:
-    """Tests for fallback availability."""
+    """Tests for the FALLBACK_AVAILABLE module-level flag."""
 
-    def test_fallback_available_is_bool(self):
-        """Test FALLBACK_AVAILABLE is a boolean."""
-        assert isinstance(FALLBACK_AVAILABLE, bool)
+    def test_fallback_available_module_constant_is_bool_instance(self):
+        # Arrange
+        flag = FALLBACK_AVAILABLE
+        # Act
+        is_bool = isinstance(flag, bool)
+        # Assert
+        assert is_bool
 
 
 if __name__ == "__main__":
     import os
 
-    import pytest
-
     pytest.main([os.path.abspath(__file__)])
 
-# --------------------------------------------------------------------------------
-# Start of Source Code from: /home/ywatanabe/proj/scitex-code/src/scitex/tex/_preview.py
-# --------------------------------------------------------------------------------
-# #!/usr/bin/env python3
-# # -*- coding: utf-8 -*-
-# # Time-stamp: "2025-06-05 12:00:00 (ywatanabe)"
-# # File: ./src/scitex/tex/_preview.py
-#
-# """
-# LaTeX preview functionality with fallback mechanisms.
-#
-# Functionality:
-#     - Generate previews of LaTeX strings with automatic fallback
-#     - Handle LaTeX rendering failures gracefully
-# Input:
-#     List of LaTeX strings
-# Output:
-#     Matplotlib figure with previews
-# Prerequisites:
-#     matplotlib, numpy, scitex.plt, scitex.str._latex_fallback
-# """
-#
-# import numpy as np
-#
-# try:
-#     from scitex.str._latex_fallback import safe_latex_render, latex_fallback_decorator
-#
-#     FALLBACK_AVAILABLE = True
-# except ImportError:
-#     FALLBACK_AVAILABLE = False
-#
-#     def latex_fallback_decorator(fallback_strategy="auto", preserve_math=True):
-#         def decorator(func):
-#             return func
-#
-#         return decorator
-#
-#     def safe_latex_render(text, fallback_strategy="auto", preserve_math=True):
-#         return text
-#
-#
-# @latex_fallback_decorator(fallback_strategy="auto", preserve_math=True)
-# def preview(tex_str_list, enable_fallback=True):
-#     r"""
-#     Generate a preview of LaTeX strings with automatic fallback.
-#
-#     Parameters
-#     ----------
-#     tex_str_list : list of str
-#         List of LaTeX strings to preview
-#     enable_fallback : bool, optional
-#         Whether to enable LaTeX fallback mechanisms, by default True
-#
-#     Returns
-#     -------
-#     matplotlib.figure.Figure
-#         Figure containing the previews
-#
-#     Examples
-#     --------
-#     >>> tex_strings = ["x^2", r"\sum_{i=1}^n i", r"\alpha + \beta"]
-#     >>> fig = preview(tex_strings)
-#     >>> scitex.plt.show()
-#
-#     Notes
-#     -----
-#     If LaTeX rendering fails, this function automatically falls back to
-#     mathtext or unicode alternatives while preserving the preview layout.
-#     """
-#     from scitex.plt import subplots
-#
-#     if not isinstance(tex_str_list, (list, tuple)):
-#         tex_str_list = [tex_str_list]
-#
-#     fig, axes = subplots(
-#         nrows=len(tex_str_list), ncols=1, figsize=(10, 3 * len(tex_str_list))
-#     )
-#     axes = np.atleast_1d(axes)
-#
-#     for ax, tex_string in zip(axes, tex_str_list):
-#         try:
-#             # Original LaTeX string (raw)
-#             if enable_fallback and FALLBACK_AVAILABLE:
-#                 safe_raw = safe_latex_render(tex_string, "unicode", preserve_math=False)
-#                 ax.text(0.5, 0.7, safe_raw, fontsize=20, ha="center", va="center")
-#             else:
-#                 ax.text(0.5, 0.7, tex_string, fontsize=20, ha="center", va="center")
-#
-#             # LaTeX-formatted string
-#             latex_formatted = (
-#                 f"${tex_string}$"
-#                 if not (tex_string.startswith("$") and tex_string.endswith("$"))
-#                 else tex_string
-#             )
-#
-#             if enable_fallback and FALLBACK_AVAILABLE:
-#                 safe_latex = safe_latex_render(latex_formatted, preserve_math=True)
-#                 ax.text(0.5, 0.3, safe_latex, fontsize=20, ha="center", va="center")
-#             else:
-#                 ax.text(0.5, 0.3, latex_formatted, fontsize=20, ha="center", va="center")
-#
-#         except Exception as e:
-#             # Fallback for individual preview failures
-#             ax.text(0.5, 0.7, f"Raw: {tex_string}", fontsize=16, ha="center", va="center")
-#             ax.text(
-#                 0.5,
-#                 0.3,
-#                 f"Error: {str(e)[:50]}...",
-#                 size=12,
-#                 ha="center",
-#                 va="center",
-#                 color="red",
-#             )
-#
-#         ax.hide_spines()
-#
-#     fig.tight_layout()
-#     return fig
-#
-#
-# # EOF
-
-# --------------------------------------------------------------------------------
-# End of Source Code from: /home/ywatanabe/proj/scitex-code/src/scitex/tex/_preview.py
-# --------------------------------------------------------------------------------
+# EOF

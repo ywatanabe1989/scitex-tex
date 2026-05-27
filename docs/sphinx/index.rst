@@ -1,8 +1,9 @@
 scitex-tex
 =============
 
-Small linear-algebra helpers (distance, geometric median, cosine, nannorm)
-extracted from the SciTeX ecosystem as a standalone package.
+LaTeX helpers — export documents to .tex, compile to PDF, render preview images,
+and format vector notation — extracted from the SciTeX ecosystem as a standalone
+package.
 
 .. toctree::
    :maxdepth: 2

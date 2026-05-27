@@ -1,9 +1,9 @@
 ---
 name: scitex-tex
 description: |
-  [WHAT] LaTeX helpers — `export_tex`, `compile_tex` (pdflatex/xelatex with bibtex-rerun handling), `preview` (first-page PNG), `to_vec` (vector→LaTeX).
-  [WHEN] Use to compile manuscripts from SciTeX writer objects, render quick previews, or convert figures to LaTeX-ready vector format.
-  [HOW] `import scitex_tex; scitex_tex.compile_tex("paper.tex")` returns a `CompileResult`; `scitex_tex.preview("paper.pdf")` writes a PNG of page 1.
+  [WHAT] LaTeX helpers — `export_tex` (writer dict → .tex), `compile_tex` (pdflatex/lualatex/xelatex with multi-pass), `preview` (LaTeX string → matplotlib Figure), `to_vec` (string → LaTeX \overrightarrow form).
+  [WHEN] Use to compile manuscripts from SciTeX writer objects, render quick math previews, or convert labels to LaTeX vector notation.
+  [HOW] `import scitex_tex; scitex_tex.compile_tex("paper.tex")` returns a `CompileResult`; `scitex_tex.preview([r"$x^2$"])` returns a matplotlib `Figure`.
 primary_interface: python
 interfaces:
   python: 2
@@ -20,7 +20,7 @@ tags: [scitex-tex]
 
 # scitex-tex
 
-LaTeX helpers — `export_tex(doc, path)` serializes a SciTeX writer object to .tex, `compile_tex(path)` runs pdflatex/xelatex with retry-on-error, `preview(path)` renders a PNG snapshot of the first page, `to_vec(...)` converts vector graphics to LaTeX-ready format. Drop-in replacement for hand-rolled `subprocess.run(['pdflatex', ...])` chains with bibtex-rerun handling.
+LaTeX helpers — `export_tex(doc, path)` serializes a SciTeX writer dict to .tex, `compile_tex(path)` runs pdflatex/xelatex/lualatex with multi-pass and optional bibtex support, `preview(tex_strings)` renders a matplotlib Figure from LaTeX strings, `to_vec(label)` wraps a string in `\overrightarrow{\mathrm{...}}` with automatic rendering fallback. Drop-in replacement for hand-rolled `subprocess.run(['pdflatex', ...])` chains.
 
 ## Index
 

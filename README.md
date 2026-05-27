@@ -30,17 +30,16 @@
 | # | Problem | Solution |
 |---|---------|----------|
 | 1 | **Hand-authored `.tex` from Python is brittle** — escaping `_` / `&` / `%` and locating the right `pdflatex` invocation eats hours per paper | **`export_tex` + `compile_tex`** — writer doc → `.tex` → `.pdf` in two calls; `CompileResult` exposes the pdf path + log on failure |
-| 2 | **Previewing a math snippet means firing up a full LaTeX project** | **`preview(r"$\sum x_i$", "out.png")`** — single-call rendering via matplotlib; no system TeX install required |
-| 3 | **Sig-fig formatting for vectors / scalars is reinvented per script** | **`to_vec(value, sig_figs=N)`** — consistent scientific notation for tables and captions |
+| 2 | **Previewing a math snippet means firing up a full LaTeX project** | **`preview([r"$\sum x_i$"])`** — single-call rendering via matplotlib returning a `Figure`; no system TeX install required |
+| 3 | **Converting strings to LaTeX vector notation** | **`to_vec("AB")`** — wraps a label in `\overrightarrow{\mathrm{...}}` with automatic fallback |
 
 ## Architecture
 
 ```
 scitex_tex/
-├── _export.py        # writer doc  → .tex string + file
-├── _compile.py       # .tex        → .pdf via pdflatex/xelatex
-├── _preview.py       # snippet     → .png (matplotlib, no system TeX needed)
-└── _vec.py           # numeric     → sig-fig vector strings
+├── _export.py        # writer doc  → .tex string + file; .tex → .pdf via pdflatex/xelatex
+├── _preview.py       # snippet     → matplotlib Figure (no system TeX needed)
+└── _to_vec.py        # string      → LaTeX \overrightarrow form
 ```
 
 ```mermaid
@@ -50,12 +49,12 @@ flowchart LR
     Tex --> Cmp[compile_tex]
     Cmp --> Pdf[manuscript.pdf]
     Snip[r'\$\\sum x_i\$'] --> Prv[preview]
-    Prv --> Png[preview.png]
-    Val[1.234e-3] --> Vec[to_vec]
-    Vec --> Str[formatted string]
+    Prv --> Fig[matplotlib Figure]
+    Label[AB] --> Vec[to_vec]
+    Vec --> Latex[r'\overrightarrow{\mathrm{AB}}']
 ```
 
-<p align="center"><sub><b>Figure 1.</b> Module layout. Four small helpers — export, compile, preview, sig-fig formatting — each callable independently.</sub></p>
+<p align="center"><sub><b>Figure 1.</b> Module layout. Three modules — export+compile, preview, vector notation — each callable independently.</sub></p>
 
 ## Installation
 
@@ -74,11 +73,11 @@ tx.export_tex(doc, "manuscript.tex")
 # Compile .tex → .pdf (returns CompileResult)
 result = tx.compile_tex("manuscript.tex")
 
-# Render a snippet to a preview image
-tx.preview(r"$\sum_{i=1}^N x_i$", "preview.png")
+# Render LaTeX snippets to a matplotlib Figure
+fig = tx.preview([r"$\sum_{i=1}^N x_i$", r"$\alpha + \beta$"])
 
-# Format a numeric value with sig-fig rules
-tx.to_vec(1.234e-3, sig_figs=3)
+# Convert a string to LaTeX vector notation
+tx.to_vec("AB")  # → \overrightarrow{\mathrm{AB}}
 ```
 
 ## 1 Interfaces
@@ -96,13 +95,14 @@ tx.export_tex(doc, "manuscript.tex")
 
 # Compile — .tex → .pdf via pdflatex/xelatex; returns CompileResult
 res = tx.compile_tex("manuscript.tex")
-print(res.pdf_path, res.log)
+print(res.pdf_path, res.stdout)
 
-# Preview — render a snippet to a PNG
-tx.preview(r"$\frac{1}{2}\sum x_i$", "preview.png")
+# Preview — render LaTeX strings to a matplotlib Figure
+fig = tx.preview([r"$\frac{1}{2}\sum x_i$", r"$\hat{\beta}$"])
+fig.savefig("preview.png")
 
-# Vector formatting helpers
-tx.to_vec(1.234e-3, sig_figs=3)
+# Convert a string to LaTeX vector notation
+tx.to_vec("AB")  # → \overrightarrow{\mathrm{AB}}
 ```
 
 </details>
@@ -112,8 +112,9 @@ tx.to_vec(1.234e-3, sig_figs=3)
 ```python
 import scitex_tex as tx
 
-# 1) Render a math preview to PNG (no system TeX required)
-tx.preview(r"$\hat{\beta} = (X^\top X)^{-1} X^\top y$", "preview.png")
+# 1) Render a math preview to a matplotlib Figure (no system TeX required)
+fig = tx.preview([r"$\hat{\beta} = (X^\top X)^{-1} X^\top y$"])
+fig.savefig("preview.png")
 
 # 2) Export + compile a manuscript end-to-end
 tx.export_tex(doc, "manuscript.tex")
@@ -125,7 +126,7 @@ print(result.pdf_path)   # → manuscript.pdf
 flowchart LR
     A[Python writer doc] -->|export_tex| B[manuscript.tex]
     B -->|compile_tex| C[manuscript.pdf]
-    D["r'\$\\hat\\beta\$'"] -->|preview| E[preview.png]
+    D["r'\$\\hat\\beta\$'"] -->|preview| E[matplotlib Figure]
     style C fill:#27ae60,stroke:#2c3e50,color:#fff
     style E fill:#27ae60,stroke:#2c3e50,color:#fff
 ```
@@ -134,9 +135,9 @@ flowchart LR
 
 ## Status
 
-Standalone fork of `scitex.tex`. Only dep is matplotlib (for preview rendering).
-The umbrella package's `scitex.tex` import path is preserved via a
-`sys.modules`-alias bridge.
+Standalone module from the SciTeX ecosystem. Dependencies: numpy, matplotlib, and
+scitex-dev (for optional imports). The umbrella package's `scitex.tex` import path
+is preserved via a `sys.modules`-alias bridge.
 
 ## Part of SciTeX
 

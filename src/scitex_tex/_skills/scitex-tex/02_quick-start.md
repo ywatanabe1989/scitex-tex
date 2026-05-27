@@ -1,7 +1,7 @@
 ---
 description: |
   [TOPIC] First scitex-tex compile in 30 seconds
-  [DETAILS] Compile a .tex file to PDF with bibtex-rerun handling; render a first-page PNG preview.
+  [DETAILS] Compile a .tex file to PDF with multi-pass handling; render LaTeX previews via matplotlib.
 tags: [scitex-tex-quick-start]
 ---
 
@@ -16,18 +16,21 @@ result = scitex_tex.compile_tex("paper.tex")
 print(result.pdf_path, result.success, result.warnings)
 ```
 
-`compile_tex` runs `pdflatex` (or `xelatex` if requested) with
-bibtex-rerun handling so cross-refs and citations resolve in one call.
-Returns a `CompileResult` with `pdf_path`, `success`, `log`, `warnings`.
+`compile_tex` runs `pdflatex` (or `xelatex`/`lualatex`/`latexmk` if requested)
+with multi-pass handling so cross-refs and citations resolve. Returns a
+`CompileResult` with `pdf_path`, `success`, `stdout`, `stderr`, `errors`,
+`warnings`.
 
-## Preview the first page
+## Preview LaTeX strings
 
 ```python
-scitex_tex.preview("paper.pdf", out="preview.png")
+fig = scitex_tex.preview([r"$\sum_{i=1}^N x_i$", r"$\alpha + \beta$"])
+fig.savefig("preview.png")
 ```
 
-Useful for embedding a current snapshot in a notebook or chat — no
-need to open a PDF viewer.
+Renders LaTeX strings via matplotlib — no system TeX installation needed.
+Returns a `matplotlib.figure.Figure` that you can display in a notebook or
+save to disk.
 
 ## See also
 

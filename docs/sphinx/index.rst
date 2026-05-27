@@ -9,7 +9,7 @@ package.
    :maxdepth: 2
    :caption: Contents:
 
-   api
+   api/scitex_tex
 
 API Reference
 -------------

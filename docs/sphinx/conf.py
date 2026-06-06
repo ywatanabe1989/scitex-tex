@@ -41,6 +41,9 @@ autosummary_generate = True
 
 napoleon_google_docstring = True
 napoleon_numpy_docstring = True
+napoleon_use_ivar = True
+napoleon_use_param = True
+napoleon_use_rtype = False
 
 templates_path = ["_templates"]
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]

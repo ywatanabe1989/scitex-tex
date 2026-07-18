@@ -22,3 +22,11 @@ docs/sphinx/api/
 !.scitex/dev/
 .scitex/dev/*
 !.scitex/dev/config.yaml
+
+# Worktree doctrine: topic-branch worktrees live here and are never tracked.
+# Without this, every worktree surfaces as untracked noise, and an autosave
+# commit can capture one as a bogus submodule gitlink (mode 160000).
+.worktrees/
+
+# Agent-local environment (carries CCT_BOT_TOKEN); must never be committed.
+.envrc
